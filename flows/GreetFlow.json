@@ -1,0 +1,291 @@
+{
+	"schemaVersion": "4",
+	"info": {
+		"name": "Greet flow",
+		"description": "Greets a user",
+		"author": "support@axway.com",
+		"license": "ISC"
+	},
+	"parameter": {
+		"properties": {
+			"params": {
+				"type": "object",
+				"description": "The parameters from the endpoint.",
+				"properties": {
+					"username": {
+						"type": "string",
+						"description": "The username"
+					}
+				},
+				"additionalProperties": false,
+				"required": [
+					"username"
+				]
+			},
+			"request": {
+				"type": "object",
+				"description": "The HTTP request."
+			},
+			"config": {
+				"type": "object",
+				"description": "The service's configuration"
+			},
+			"env": {
+				"type": "object",
+				"description": "The host OS environment"
+			}
+		},
+		"additionalProperties": false,
+		"required": [
+			"params",
+			"request",
+			"config",
+			"env"
+		]
+	},
+	"start": "javascript.1",
+	"nodes": {
+		"UnifiedCatalog_Swagger.1": {
+			"type": "nodehandler://@axway/api-builder-plugin-fn-swagger/UnifiedCatalog_Swagger",
+			"name": "GET_catalogItems",
+			"method": "GET_catalogItems",
+			"parameters": [
+				{
+					"name": "X-Axway-Tenant-Id",
+					"type": "string",
+					"value": "\"1234\""
+				}
+			],
+			"outputs": {
+				"200": {
+					"routes": [],
+					"context": "$.response"
+				},
+				"400": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "400"
+				},
+				"401": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "401"
+				},
+				"403": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "403"
+				},
+				"500": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "500"
+				},
+				"error": {
+					"routes": [],
+					"context": "$.error",
+					"metaName": "Error"
+				},
+				"default": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "Default"
+				}
+			},
+			"authorizations": [
+				{
+					"name": "Bearer",
+					"type": "jsonpath",
+					"value": "$.createcredentialsresult"
+				}
+			],
+			"metaMethod": "GET_catalogItems"
+		},
+		"javascript.1": {
+			"type": "nodehandler://@axway/api-builder-plugin-fn-javascript/javascript",
+			"name": "Concatenate clientId and Secret",
+			"method": "Execute",
+			"parameters": [
+				{
+					"name": "code",
+					"type": "string",
+					"value": "\"return process.env.clientId + ':' + process.env.clientSecret;\"",
+					"metaName": "Code",
+					"metaDescription": "A JavaScript function body. Supports `await` and returning promises. `data` is the value of the Data parameter. `logger` is the API Builder logger. See the docs for more info: https://docs.axway.com/bundle/api-builder/page/docs/developer_guide/flows/flow_nodes/javascript_flow_node/index.html"
+				}
+			],
+			"outputs": {
+				"next": {
+					"context": "$.concatidsecretresult",
+					"routes": [
+						"base64.1"
+					],
+					"metaName": "Next"
+				},
+				"error": {
+					"context": "$.concatidsecreterror",
+					"routes": [],
+					"metaName": "Error"
+				}
+			},
+			"metaMethod": "Execute"
+		},
+		"base64.1": {
+			"type": "nodehandler://@axway/api-builder-plugin-fn-base64/base64",
+			"name": "Base64 encode clientId and Secret",
+			"method": "encode",
+			"parameters": [
+				{
+					"name": "data",
+					"type": "jsonpath",
+					"value": "$.concatidsecretresult",
+					"metaName": "Data",
+					"metaDescription": "The data to encode."
+				}
+			],
+			"outputs": {
+				"next": {
+					"routes": [
+						"javascript.2"
+					],
+					"context": "$.b64data",
+					"metaName": "Next"
+				},
+				"error": {
+					"routes": [],
+					"context": "$.error",
+					"metaName": "Error"
+				}
+			},
+			"metaMethod": "Encode"
+		},
+		"javascript.2": {
+			"type": "nodehandler://@axway/api-builder-plugin-fn-javascript/javascript",
+			"name": "PrepareGetAccessToken",
+			"method": "Execute",
+			"parameters": [
+				{
+					"name": "data",
+					"type": "jsonpath",
+					"value": "$",
+					"metaName": "Data",
+					"metaDescription": "The value to apply as the `data` argument of the JavaScript code. For objects and arrays, `data` is passed by reference."
+				},
+				{
+					"name": "code",
+					"type": "string",
+					"value": "\"var qs = require('qs');\\n  \\n  let headers = {\\n\\t'Authorization': 'Basic '+data.b64data,\\n\\t'content-type': 'application/x-www-form-urlencoded;charset=utf-8'\\n  };\\n  \\n  let body = qs.stringify({\\n \\tgrant_type: 'client_credentials'\\n  });\\n  \\n  console.log(headers);\\n  console.log(body);\\n  \\n  return {headers,body};\"",
+					"metaName": "Code",
+					"metaDescription": "A JavaScript function body. Supports `await` and returning promises. `data` is the value of the Data parameter. `logger` is the API Builder logger. See the docs for more info: https://docs.axway.com/bundle/api-builder/page/docs/developer_guide/flows/flow_nodes/javascript_flow_node/index.html"
+				}
+			],
+			"outputs": {
+				"next": {
+					"context": "$.preparegetaccesstokenresult",
+					"routes": [
+						"rest.1"
+					],
+					"metaName": "Next"
+				},
+				"error": {
+					"context": "$.preparegetaccesstokenerror",
+					"routes": [],
+					"metaName": "Error"
+				}
+			},
+			"metaMethod": "Execute"
+		},
+		"rest.1": {
+			"type": "nodehandler://@axway/api-builder-plugin-fn-restclient/rest",
+			"name": "GetAccessToken",
+			"method": "post",
+			"parameters": [
+				{
+					"name": "url",
+					"type": "string",
+					"value": "\"https://login.axway.com/auth/realms/Broker/protocol/openid-connect/token\"",
+					"metaName": "URL",
+					"metaDescription": "The target URL."
+				},
+				{
+					"name": "headers",
+					"type": "jsonpath",
+					"value": "$.preparegetaccesstokenresult.headers",
+					"metaName": "Headers",
+					"metaDescription": "The HTTP headers to set."
+				},
+				{
+					"name": "body",
+					"type": "jsonpath",
+					"value": "$.preparegetaccesstokenresult.body",
+					"metaName": "Body",
+					"metaDescription": "The content to send."
+				}
+			],
+			"outputs": {
+				"2xx": {
+					"routes": [
+						"javascript.3"
+					],
+					"context": "$.GetAccessTokenResponse",
+					"metaName": "2XX"
+				},
+				"3xx": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "3XX"
+				},
+				"4xx": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "4XX"
+				},
+				"5xx": {
+					"routes": [],
+					"context": "$.response",
+					"metaName": "5XX"
+				},
+				"error": {
+					"routes": [],
+					"context": "$.error",
+					"metaName": "Error"
+				}
+			},
+			"metaMethod": "POST"
+		},
+		"javascript.3": {
+			"type": "nodehandler://@axway/api-builder-plugin-fn-javascript/javascript",
+			"name": "CreateCredentials",
+			"method": "Execute",
+			"parameters": [
+				{
+					"name": "data",
+					"type": "jsonpath",
+					"value": "$",
+					"metaName": "Data",
+					"metaDescription": "The value to apply as the `data` argument of the JavaScript code. For objects and arrays, `data` is passed by reference."
+				},
+				{
+					"name": "code",
+					"type": "string",
+					"value": "\"return 'Bearer '+data.GetAccessTokenResponse.body.access_token;\""
+				}
+			],
+			"outputs": {
+				"next": {
+					"context": "$.createcredentialsresult",
+					"routes": [
+						"UnifiedCatalog_Swagger.1"
+					],
+					"metaName": "Next"
+				},
+				"error": {
+					"context": "$.createcredentialserror",
+					"routes": [],
+					"metaName": "Error"
+				}
+			},
+			"metaMethod": "Execute"
+		}
+	}
+}
